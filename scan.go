@@ -9,16 +9,16 @@ import (
 	"sync"
 )
 
-// ParseDir walks dirs for .md files and parses them concurrently, returning
-// one Note per file. It stops at the first file that fails to parse.
-//
-// ponytail: fail-fast, not partial results — one bad file blanks the whole
-// scan. Fine for cairn's own self-controlled landmarks/, not for sill
-// pointed at an arbitrary vault it doesn't own. Upgrade when that lands:
-// return ([]*Note, []error) and collect per-file errors instead of
-// returning early, skipping only the failed file's Note.
-func ParseDir(dirs []string) ([]*Note, error) {
+// ParseDir walks dirs for .md files and parses them concurrently,
+// returning one Note per file that parsed successfully, plus every
+// per-file error encountered (each already wrapped with its path by
+// Parse). A bad file is skipped, not fatal to the whole scan — a vault
+// sill doesn't control can contain template files with Templater/
+// Dataview placeholder syntax ({{date}}, %% comment %%) that isn't valid
+// YAML; one such file used to blank the entire scan.
+func ParseDir(dirs []string) ([]*Note, []error) {
 	var paths []string
+	var errs []error
 	for _, dir := range dirs {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
@@ -31,12 +31,12 @@ func ParseDir(dirs []string) ([]*Note, error) {
 			return nil
 		})
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
 		}
 	}
 
 	notes := make([]*Note, len(paths))
-	errs := make([]error, len(paths))
+	parseErrs := make([]error, len(paths))
 
 	numWorkers := min(runtime.NumCPU(), len(paths))
 	if numWorkers < 1 {
@@ -55,16 +55,19 @@ func ParseDir(dirs []string) ([]*Note, error) {
 		go func() {
 			defer wg.Done()
 			for i := range work {
-				notes[i], errs[i] = Parse(paths[i])
+				notes[i], parseErrs[i] = Parse(paths[i])
 			}
 		}()
 	}
 	wg.Wait()
 
-	for _, err := range errs {
-		if err != nil {
-			return nil, err
+	var out []*Note
+	for i, n := range notes {
+		if parseErrs[i] != nil {
+			errs = append(errs, parseErrs[i])
+			continue
 		}
+		out = append(out, n)
 	}
-	return notes, nil
+	return out, errs
 }

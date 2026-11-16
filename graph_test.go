@@ -40,9 +40,9 @@ func TestBuildGraph_ResolvedUnresolvedAmbiguous(t *testing.T) {
 // composed capabilities (Parse, Extract/Match, BuildGraph) agree on
 // hearth's own real design docs.
 func TestBuildGraph_OnOwnLandmarks(t *testing.T) {
-	notes, err := ParseDir([]string{"landmarks"})
-	if err != nil {
-		t.Fatalf("ParseDir: %v", err)
+	notes, errs := ParseDir([]string{"landmarks"})
+	if len(errs) > 0 {
+		t.Fatalf("ParseDir: %v", errs)
 	}
 
 	path := func(n *Note) string { return n.Path }

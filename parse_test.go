@@ -68,9 +68,9 @@ func TestParseDir_Parallel(t *testing.T) {
 		}
 	}
 
-	notes, err := ParseDir([]string{dir})
-	if err != nil {
-		t.Fatalf("ParseDir: %v", err)
+	notes, errs := ParseDir([]string{dir})
+	if len(errs) > 0 {
+		t.Fatalf("ParseDir: %v", errs)
 	}
 	if len(notes) != 20 {
 		t.Fatalf("got %d notes, want 20", len(notes))
@@ -85,14 +85,28 @@ func TestParseDir_Parallel(t *testing.T) {
 	}
 }
 
-func TestParseDir_PropagatesError(t *testing.T) {
+// TestParseDir_SkipsBadFiles mirrors a real failure found scanning actual
+// Obsidian vaults (kepano/kepano-obsidian, s-blu/obsidian_dataview_example_
+// vault): a template file using Templater/Dataview placeholder syntax
+// ({{date}}, %% comment %%) isn't valid YAML. One such file used to blank
+// the entire ParseDir call; now it's skipped, reported as an error, and
+// every other file still parses.
+func TestParseDir_SkipsBadFiles(t *testing.T) {
 	dir := t.TempDir()
+	good := filepath.Join(dir, "good.md")
+	if err := os.WriteFile(good, []byte("---\nid: GOOD\n---\n\nbody\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	bad := filepath.Join(dir, "bad.md")
-	if err := os.WriteFile(bad, []byte("---\nid: [unterminated\n---\n\nbody\n"), 0644); err != nil {
+	if err := os.WriteFile(bad, []byte("---\ncreated: {{date}}\n---\n\nbody\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := ParseDir([]string{dir}); err == nil {
-		t.Fatal("expected error for malformed YAML in directory scan, got nil")
+	notes, errs := ParseDir([]string{dir})
+	if len(errs) != 1 {
+		t.Fatalf("got %d errors, want 1: %v", len(errs), errs)
+	}
+	if len(notes) != 1 || notes[0].Frontmatter["id"] != "GOOD" {
+		t.Fatalf("got %d notes, want 1 good note: %+v", len(notes), notes)
 	}
 }
