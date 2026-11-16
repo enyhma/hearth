@@ -55,7 +55,7 @@ func Parse(path string) (*Note, error) {
 	}
 	fm, body := Split(content)
 	note := &Note{Path: path, Body: body}
-	if fm != nil {
+	if len(fm) > 0 {
 		m, err := ParseFrontmatter(fm)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)

@@ -35,6 +35,29 @@ func TestParseFrontmatter_Malformed(t *testing.T) {
 	}
 }
 
+func TestParse_EmptyFrontmatterBlock(t *testing.T) {
+	// Split returns a non-nil, zero-length frontmatter for "---\n---\n":
+	// the delimiters are present but there's nothing between them. Parse
+	// must treat that the same as "no frontmatter", not feed zero bytes
+	// to the YAML decoder (which errors with io.EOF on empty input).
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.md")
+	if err := os.WriteFile(path, []byte("---\n---\n\nbody text\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	note, err := Parse(path)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if note.Frontmatter != nil {
+		t.Errorf("expected nil Frontmatter, got %#v", note.Frontmatter)
+	}
+	if note.Body != "body text" {
+		t.Errorf("Body = %q", note.Body)
+	}
+}
+
 func TestParseDir_Parallel(t *testing.T) {
 	dir := t.TempDir()
 	for i := range 20 {
