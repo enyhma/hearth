@@ -50,10 +50,6 @@ copy) share one implementation.
 - VCS-aware identity and state hashing — see [[CAP-Qofkiw23Ac]]. Already
   fully generic in cairn today; feeds [[CAP-V256uqoWXF]]'s `extraSignals`
   directly.
-- Config-file discovery (walk-up-for-a-named-file) — see
-  [[CAP-qweZ9RK93Y]]. The weakest-justified of the four: generic, but no
-  second consumer yet, brought over on the owner's call rather than
-  waiting for one.
 
 ## Non Goals
 
