@@ -47,7 +47,9 @@ is a caller identity-function concern already solvable with today's API —
 no hearth change needed, just include the target's own `aliases` in the
 identity list the caller builds. Folder-proximity disambiguation (same-
 named notes in different folders) is **not** solved here — see
-[[DEC-KmwgEn335Y]].
+[[DEC-KmwgEn335Y]]. Standard markdown links (`[text](path)`, which real
+Obsidian treats as equivalent to a wikilink) are out of scope entirely,
+not just deferred — see [[DEC-eNpnKNyt6w]].
 
 ## Actor
 
