@@ -49,7 +49,18 @@ identity list the caller builds. Folder-proximity disambiguation (same-
 named notes in different folders) is **not** solved here — see
 [[DEC-KmwgEn335Y]]. Standard markdown links (`[text](path)`, which real
 Obsidian treats as equivalent to a wikilink) are out of scope entirely,
-not just deferred — see [[DEC-eNpnKNyt6w]].
+not just deferred — see [[DEC-eNpnKNyt6w]]. Reading what a `.canvas`
+file itself references is out of scope the same way — see
+[[DEC-eNpn5pU46w]]; `WalkAssets` already treats a canvas file as an
+opaque resolvable path, same as any other non-`.md` asset.
+
+`Match`'s case-sensitivity (exact match case-sensitive, fuzzy fallback
+case-insensitive) is settled, not an open question: a precise match
+shouldn't silently cross a case boundary into the wrong item, while a
+fuzzy fallback being case-insensitive matches how search/fallback
+matching behaves everywhere else in this codebase. Not derived from
+Obsidian's own internal algorithm — a defensible design on its own
+terms either way.
 
 ## Actor
 
