@@ -44,6 +44,64 @@ func TestExtract(t *testing.T) {
 	}
 }
 
+func TestExtractFrontmatter(t *testing.T) {
+	fm := map[string]any{
+		"categories": []any{"[[Albums]]", "plain text"},
+		"links": map[string]any{
+			"refines": "[[CTX-1]]",
+		},
+		"year":  1992.0, // non-string leaves are ignored, not errors
+		"empty": nil,
+	}
+	got := ExtractFrontmatter(fm)
+	targets := map[string]bool{}
+	for _, r := range got {
+		targets[r.Target] = true
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d refs, want 2: %+v", len(got), got)
+	}
+	if !targets["Albums"] || !targets["CTX-1"] {
+		t.Errorf("targets = %v, want Albums and CTX-1", targets)
+	}
+}
+
+func TestExtractFrontmatter_DeterministicMapOrder(t *testing.T) {
+	fm := map[string]any{"links": map[string]any{"a": "[[First]]", "b": "[[Second]]"}}
+	first := ExtractFrontmatter(fm)
+	for i := 0; i < 20; i++ {
+		got := ExtractFrontmatter(fm)
+		if len(got) != len(first) || got[0] != first[0] || got[1] != first[1] {
+			t.Fatalf("non-deterministic order: %+v vs %+v", first, got)
+		}
+	}
+}
+
+func TestSplitFragment(t *testing.T) {
+	cases := map[string][2]string{
+		"Trips.base#Location": {"Trips.base", "Location"},
+		"Note#^blockid":       {"Note", "^blockid"},
+		"Plain Note":          {"Plain Note", ""},
+	}
+	for in, want := range cases {
+		note, frag := SplitFragment(in)
+		if note != want[0] || frag != want[1] {
+			t.Errorf("SplitFragment(%q) = (%q, %q), want (%q, %q)", in, note, frag, want[0], want[1])
+		}
+	}
+}
+
+func TestMatch_StripsFragmentBeforeMatching(t *testing.T) {
+	type note struct{ name string }
+	identity := func(n note) []string { return []string{n.name} }
+	notes := []note{{name: "Trips.base"}, {name: "Other"}}
+
+	m := Match(notes, identity, "Trips.base#Location")
+	if len(m) != 1 || m[0].name != "Trips.base" {
+		t.Fatalf("got %+v, want Trips.base resolved with the fragment stripped", m)
+	}
+}
+
 type cairnItem struct {
 	id, slug, name string
 }

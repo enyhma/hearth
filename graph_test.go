@@ -18,7 +18,7 @@ func TestBuildGraph_ResolvedUnresolvedAmbiguous(t *testing.T) {
 		{path: "dup2.md", id: "dup-two", body: ""},
 	}
 
-	g := BuildGraph(items, graphNotePath, graphNoteBody, graphNoteIdentity)
+	g := BuildGraph(items, graphNotePath, graphNoteBody, nil, graphNoteIdentity)
 
 	if !g.LinksTo("a.md", "b.md") {
 		t.Error("expected a.md to link to b.md")
@@ -33,6 +33,51 @@ func TestBuildGraph_ResolvedUnresolvedAmbiguous(t *testing.T) {
 	// produce edges.
 	if got := g.Out("b.md"); len(got) != 0 {
 		t.Errorf("Out(b.md) = %v, want none (unresolved/ambiguous skipped)", got)
+	}
+}
+
+// TestBuildGraph_FrontmatterWikilinks confirms a wikilink embedded in a
+// frontmatter value (categories: ["[[Albums]]"], the real pattern from
+// kepano-obsidian's actual vault) produces a graph edge the same way a
+// body-text [[wikilink]] does — real Obsidian indexes both identically.
+func TestBuildGraph_FrontmatterWikilinks(t *testing.T) {
+	type note struct {
+		path, id string
+		fm       map[string]any
+	}
+	items := []note{
+		{path: "a.md", id: "A", fm: map[string]any{"categories": []any{"[[Albums]]"}}},
+		{path: "albums.md", id: "Albums", fm: nil},
+	}
+	path := func(n note) string { return n.path }
+	body := func(n note) string { return "" }
+	frontmatter := func(n note) map[string]any { return n.fm }
+	identity := func(n note) []string { return []string{n.id} }
+
+	g := BuildGraph(items, path, body, frontmatter, identity)
+	if !g.LinksTo("a.md", "albums.md") {
+		t.Error("expected a frontmatter-embedded wikilink to produce a graph edge")
+	}
+}
+
+// TestBuildGraph_FragmentStripped confirms "[[Note#Heading]]" resolves
+// to "Note" rather than failing to resolve at all — the real shape seen
+// in kepano-obsidian's own vault (![[Trips.base#Location]]).
+func TestBuildGraph_FragmentStripped(t *testing.T) {
+	type note struct {
+		path, id, body string
+	}
+	items := []note{
+		{path: "a.md", id: "A", body: "embeds [[Trips.base#Location]]"},
+		{path: "trips.base.md", id: "Trips.base", body: ""},
+	}
+	path := func(n note) string { return n.path }
+	body := func(n note) string { return n.body }
+	identity := func(n note) []string { return []string{n.id} }
+
+	g := BuildGraph(items, path, body, nil, identity)
+	if !g.LinksTo("a.md", "trips.base.md") {
+		t.Error("expected [[Trips.base#Location]] to resolve to Trips.base, fragment stripped")
 	}
 }
 
@@ -52,7 +97,8 @@ func TestBuildGraph_OnOwnLandmarks(t *testing.T) {
 		return []string{id}
 	}
 
-	g := BuildGraph(notes, path, body, identity)
+	frontmatter := func(n *Note) map[string]any { return n.Frontmatter }
+	g := BuildGraph(notes, path, body, frontmatter, identity)
 
 	var frontmatterPath, wikilinkPath string
 	for _, n := range notes {

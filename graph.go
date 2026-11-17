@@ -9,15 +9,21 @@ type Graph struct {
 	in  map[string]map[string]bool
 }
 
-// BuildGraph scans every item's body for [[wikilink]] references and
-// records the ones that resolve to exactly one item (via identity) as an
-// edge from path(item) to path(target). Unresolved (0 matches) and
-// ambiguous (>1 matches) references are skipped — surfacing those is the
-// caller's concern.
-func BuildGraph[T any](items []T, path, body func(T) string, identity func(T) []string) *Graph {
+// BuildGraph scans every item's body — and, when frontmatter is non-nil,
+// its frontmatter values too (real Obsidian indexes both the same way;
+// see ExtractFrontmatter) — for [[wikilink]] references, and records the
+// ones that resolve to exactly one item (via identity) as an edge from
+// path(item) to path(target). Unresolved (0 matches) and ambiguous
+// (>1 matches) references are skipped — surfacing those is the caller's
+// concern. Pass frontmatter as nil to scan body text only.
+func BuildGraph[T any](items []T, path, body func(T) string, frontmatter func(T) map[string]any, identity func(T) []string) *Graph {
 	g := &Graph{out: make(map[string]map[string]bool), in: make(map[string]map[string]bool)}
 	for _, it := range items {
-		for _, ref := range Extract(body(it)) {
+		refs := Extract(body(it))
+		if frontmatter != nil {
+			refs = append(refs, ExtractFrontmatter(frontmatter(it))...)
+		}
+		for _, ref := range refs {
 			matches := Match(items, identity, ref.Target)
 			if len(matches) != 1 {
 				continue
